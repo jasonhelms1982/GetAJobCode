@@ -3,13 +3,11 @@
  *
  *   Author: Jason Helms
  *
- *   This is the code to perform a Discreet Wavelet Transform 4 images, twice. One for red, green, blue and the calculated luminance values. 
- *   There are only 3 methods, one for errors, one to walk the input images and one to do the actaul wavelet calculations. This code
- *   was developed from online forums, Dr. Tiens matlab script and opencv docs. Main takes 3 args, input directory of the r,g,b and l
- *   images, a working directory to keep round 1 of the wavelet transforms and the output (results for binary image transformation input)
- *   directory. This wavelet is a Haar wavelet (Deaubacies with D=1) but instead of averaging the sum of pixels for the LL, other values
- *   could be used (like I have seen root(2)/2 ~ 0.707, not sure why, may test later). 
- *
+ *   This is the code to perform a Discreet Wavelet Transform on a grayscale image. There are 
+ *   only 2 methods, one for errors and two to do the actaul wavelet calculations. This code
+ *   was developed from online forums, Dr. Tiens matlab script and opencv docs. Main takes 2 arguments:
+ *   1) input image and 2) output directory for output images, 4 of them
+ *   
  * Created by Jason Helms on 12/07/15.
  *
  */
@@ -38,47 +36,14 @@ namespace patch
 }
 void printError();
 void computeOneWavelet(String picture, String dest, float val);
-void waveTransAll(string color, string input_pre, string inputMmid, string results);
 
 
 // argv[1] input-dir: pre-wave
-// argv[2] output,input-dir: pre-wave, mid-wave
-// argv[3] output-dir : mid-wave (aka results)
-// argv[4]
+// argv[2] output-dir: post-wave
 int main(int argc, char** argv)
 {
-    waveTransAll("blue", argv[1], argv[2], argv[3]);
-    waveTransAll("red", argv[1], argv[2], argv[3]);
-    waveTransAll("green", argv[1], argv[2], argv[3]);
-    waveTransAll("lum", argv[1], argv[2], argv[3]);
+    computetOneWavelet(argv[1], argv[2]);
     return 0;
-}
-
-    /* This is a fancy little method to walk a directory of known inputs and perfrom a wavelet transfrom. There is no
-     * need to make sure the images are of any certain size, the code does not care. 
-     */
-
-void waveTransAll(string color, string input_pre, string input_mid, string results)
-{
-    //round 1 - in: ../data/pre-wave-proc/'color', out: ../data/mid-wave-proc/'color'
-    for(int i = 0; i < 64; i++)
-    {
-      String input1 = input_pre + color + "/" + color + "_" + patch::to_string(i) + ".png";//add to for loop and change 0 to i
-      String output1 = input_mid + color + "/" + color + "_" + patch::to_string(i) + ".png"; //same as above
-      computeOneWavelet(input1, output1, filter);
-      remove(input1.c_str());
-    }
-    //round 2 - in: ../data/mid-wave-proc/'color', out: ../data/post-wave-proc/'color'
-
-    for(int i = 0; i < 64; i++)
-    {
-      String input2 = input_mid + color + "/" + color + "_" + patch::to_string(i) + ".png";//add to for loop and change 0 to i
-      String output2 = results + color + "/" + color + "_" + patch::to_string(i) + ".png"; //same as above
-      computeOneWavelet(input2, output2, filter);
-      remove(input2.c_str());
-    }
-    
-    
 }
 
 
@@ -89,34 +54,34 @@ void waveTransAll(string color, string input_pre, string input_mid, string resul
      *
      */
 
-void computeOneWavelet(String picture, String dest, float val)
+void computeOneWavelet(String picture, String dest)
 {
     Mat in = imread (picture, 0);
 
     if(! in.data)
         printError();
-    Mat input(in.rows, in.cols, CV_32F);
-    in.convertTo(input, CV_32F, 1.0, 0.0);
 
-    Mat L, LL; //LH, LL, HL, HH, L, H;
+    in.convertTo(in, CV_32F, 1.0, 0.0);
+
+    Mat L, LL, LH, LL, HL, HH, L, H;
 
     float a, b, c, d;
 
-    L = Mat::zeros(input.rows/2, input.cols, CV_32F);
-    H = Mat::zeros(input.rows/2, input.cols, CV_32F);
+    L = Mat::zeros(in.rows/2, in.cols, CV_32F);
+    H = Mat::zeros(in.rows/2, in.cols, CV_32F);
 
-    LL = Mat::zeros(input.rows/2, input.cols/2, CV_32F);
-    LH = Mat::zeros(input.rows/2, input.cols/2, CV_32F);
+    LL = Mat::zeros(in.rows/2, in.cols/2, CV_32F);
+    LH = Mat::zeros(in.rows/2, in.cols/2, CV_32F);
 
-    HH = Mat::zeros(input.rows/2, input.cols/2, CV_32F);
-    HL = Mat::zeros(input.rows/2, input.cols/2, CV_32F);
+    HH = Mat::zeros(in.rows/2, in.cols/2, CV_32F);
+    HL = Mat::zeros(in.rows/2, in.cols/2, CV_32F);
 
-    for(int rcnt=0;rcnt<input.rows;rcnt+=2)
+    for(int rcnt=0;rcnt<in.rows;rcnt+=2)
     {
-        for(int ccnt=0;ccnt<input.cols;ccnt++)
+        for(int ccnt=0;ccnt<in.cols;ccnt++)
         {
-          a=input.at<float>(rcnt,ccnt);
-          b=input.at<float>(rcnt+1,ccnt);
+          a=in.at<float>(rcnt,ccnt);
+          b=in.at<float>(rcnt+1,ccnt);
           c=(float)(a+b)*val;
           d=(float)(a-b)*val;
           int _rcnt=rcnt/2;
@@ -125,9 +90,11 @@ void computeOneWavelet(String picture, String dest, float val)
         }//end inner for
     }//end outter for 
     
-    for(int rcnt=0;rcnt<input.rows/2;rcnt++)
+    in.deallocate();
+    
+    for(int rcnt=0;rcnt<in.rows/2;rcnt++)
     {
-        for(int ccnt=0;ccnt<input.cols;ccnt+=2)
+        for(int ccnt=0;ccnt<in.cols;ccnt+=2)
         {
           a=L.at<float>(rcnt,ccnt);
           b=L.at<float>(rcnt,ccnt+1);
@@ -139,9 +106,9 @@ void computeOneWavelet(String picture, String dest, float val)
         }
     }
 
-    for(int rcnt=0;rcnt<input.rows/2;rcnt++)
+    for(int rcnt=0;rcnt<in.rows/2;rcnt++)
     {
-        for(int ccnt=0;ccnt<input.cols;ccnt+=2)
+        for(int ccnt=0;ccnt<in.cols;ccnt+=2)
         {
           a=H.at<float>(rcnt,ccnt);
           b=H.at<float>(rcnt,ccnt+1);
@@ -155,6 +122,11 @@ void computeOneWavelet(String picture, String dest, float val)
 
     L.convertTo(L, CV_8U);
     H.convertTo(H ,CV_8U);
+    
+    imwrite(dest + "l.png", L);
+    imwrite(dest + "h.png", H);
+    L.deallocate();
+    H.deallocate();
 
     HL.convertTo(HL, CV_8U);
     HH.convertTo(HH, CV_8U);
@@ -165,6 +137,11 @@ void computeOneWavelet(String picture, String dest, float val)
     imwrite(dest + "lh.png", LH);
     imwrite(dest + "hl.png", HL);
     imwrite(dest + "hh.png", HH);
+    
+    LL.deallocate();
+    HH.deallocate();
+    LH.deallocate();
+    HL.deallocate();
 }
 
 /* This is a simple method to print an error message when error occurs, prints to command line only. */
